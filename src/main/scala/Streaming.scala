@@ -1,19 +1,31 @@
-import org.apache.spark.sql.expressions.Window
+import java.util.Properties
+
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-import org.apache.spark.{SparkConf, SparkContext}
 
 object Streaming {
   def main(args: Array[String]) {
-    val conf = new SparkConf().setAppName(Streaming.getClass.getName)
-    val sc = new SparkContext(conf)
-    implicit val spark: SparkSession = SparkSession.builder().config(conf).getOrCreate()
+    val spark = SparkSession
+      .builder
+      .appName("StructuredNetworkWordCount")
+      .getOrCreate()
 
     val ds = spark.readStream.format("kafka")
       .option("kafka.bootstrap.servers", "localhost:9092")
       .option("subscribe", "order")
       .load()
 
-    ds.writeStream.format("console").start()
+    val jdbcUrl = "jdbc:clickhouse://127.0.0.1:9000/binance"
+    val ckProperties = new Properties()
+    ckProperties.put("user", "username")
+    ckProperties.put("password", "password")
+
+//    ds.show()
+
+    val query = ds.writeStream.foreachBatch ( (batchDF: DataFrame, batchId: Long) =>
+      batchDF.write.mode("append").option("driver", "ru.yandex.clickhouse.ClickHouseDriver").jdbc(jdbcUrl, table = "order", ckProperties)
+    ).start()
+
+    query.awaitTermination()
   }
 }
