@@ -1,1 +1,1 @@
-case class OrderUpdate(e: String, E: Long, s: String, U: Long, u: Long, b: Set[Set[String]], a: Set[Set[String]])
+case class OrderUpdate(e: String, E: Long, s: String, U: Long, u: Long, b: List[(String, String)], a: List[(String, String)])
