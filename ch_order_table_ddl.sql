@@ -9,8 +9,8 @@ CREATE TABLE binance.order
 	s String,
 	U UInt64,
 	u UInt64,
-	b Array(Tuple(String, String)),
-	a Array(Tuple(String, String))
+	b String, --Array(Tuple(String, String)),
+	a String --Array(Tuple(String, String))
 ) ENGINE = MergeTree order by tuple();;
 --PARTITION BY toYYYYMM(created_at)
 --todo add PARTITION BY date ORDER BY (time, ad_id) SAMPLE BY ad_id SETTINGS index_granularity = 8192
