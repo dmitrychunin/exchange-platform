@@ -2,7 +2,7 @@ import java.util.Properties
 
 import org.apache.spark.sql.catalyst.ScalaReflection
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{ArrayType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, DoubleType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Dataset, Encoders, Row, SparkSession}
 //import ru.yandex.clickhouse._
 
@@ -14,25 +14,9 @@ object Streaming {
       .config("spark.sql.caseSensitive", "true")
       .getOrCreate()
 
-    val schema1 = ScalaReflection.schemaFor[OrderUpdate].dataType.asInstanceOf[StructType]
-    schema1.printTreeString()
-    val schema: StructType = StructType(Array(
-      StructField("e", StringType, nullable = false),
-      StructField("E", StringType, nullable = false),
-      StructField("s", StringType, nullable = false),
-      StructField("U", StringType, nullable = false),
-      StructField("u", StringType, nullable = false)//,
-//      StructField("b", ArrayType(StructType(Array(
-//        StructField("_1", StringType, nullable = false),
-//        StructField("_2", StringType, nullable = false)
-//      )), containsNull=false), nullable = false),
-//      StructField("a", ArrayType(StructType(Array(
-//        StructField("_1", StringType, nullable = false),
-//        StructField("_2", StringType, nullable = false)
-//      )), containsNull=false), nullable = false)
-    ))
+    val schema = ScalaReflection.schemaFor[OrderUpdateInput].dataType.asInstanceOf[StructType]
     schema.printTreeString()
-//    (e: String, E: String, s: String, U: String, u: String, b: List[(String, String)], a: List[(String, String)])
+
     import spark.implicits._
     val ds = spark.readStream.format("kafka")
       .option("kafka.bootstrap.servers", "localhost:9092")
@@ -43,36 +27,43 @@ object Streaming {
       .selectExpr("CAST(value AS STRING)")
       .select(from_json($"value", schema).alias("parsed_value"))
       .select("parsed_value.*")
-//      .as[OrderUpdate]
-
-      //      todo parse from json
-//      .as[String]
+      .as[OrderUpdateInput]
 
     val jdbcUrl = "jdbc:clickhouse://127.0.0.1:8123/binance"
     val ckProperties = new Properties()
     ckProperties.put("user", "default")
     ckProperties.put("password", "")
 
-//    ds.show()
-//todo распарсить json-строку в df с несколькими колонками, тогда можно будет сконвертировать в объект
-    val query = ds.writeStream.foreachBatch ( (batchDF: Dataset[Row], _: Long) => {
-      batchDF.show()
-//      val schema = schema_of_json(lit(batchDF.select($"value").as[String].first))
-//      batchDF.withColumn("jsonData", from_json($"value", schema)).select("jsonData.u")
+    val query = ds.writeStream.foreachBatch ( (batchDF: Dataset[OrderUpdateInput], _: Long) => {
 //      batchDF.show()
-//      batchDF
-//        .select("parsed_value.e, parsed_value.E, parsed_value.s, parsed_value.U, parsed_value.u")
-//        .show()
+//      batchDF.printSchema()
+//      todo fix Can't get JDBC type for array<struct<_1:string,_2:string>>
+//      val orderUpdateDs = batchDF
+//        .map((input: OrderUpdateInput) => OrderUpdateOutput(
+//          e = input.e,
+//          E = input.E,
+//          s = input.s,
+//          u = input.u,
+//          U = input.U,
+//          a = input.a.map{ case Seq(a, b) => (a, b) },
+//          b = input.b.map{ case Seq(a, b) => (a, b) }
+//        ))
+        val orderUpdateDs = batchDF
+          .map((input: OrderUpdateInput) => OrderUpdateOutput(
+            e = input.e,
+            E = input.E,
+            s = input.s,
+            u = input.u,
+            U = input.U,
+            //draft array saving
+            a = input.a.toString(),
+            b = input.b.toString()
+          ))
 
-      batchDF
-//        .select(
-//          col("e").as("e"),
-//          col("E").as("E"),
-//          col("s").as("s"),
-//          col("u").as("u"),
-//          col("U").as("U")
-//        )
-
+//      orderUpdateDs.show()
+//      orderUpdateDs.printSchema()
+//todo выбрать базу в которой можно хранить вложенные массивы (в clickhouse )
+      orderUpdateDs
         .write.mode("append").option("driver", "ru.yandex.clickhouse.ClickHouseDriver").jdbc(jdbcUrl, table = "binance.order", ckProperties)
     }).start()
 
