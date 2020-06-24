@@ -64,6 +64,7 @@ object Streaming {
 //      orderUpdateDs.printSchema()
 //todo выбрать базу в которой можно хранить вложенные массивы (в clickhouse )
       orderUpdateDs
+          .withColumn("created_at", current_timestamp())
         .write.mode("append").option("driver", "ru.yandex.clickhouse.ClickHouseDriver").jdbc(jdbcUrl, table = "binance.order", ckProperties)
     }).start()
 
