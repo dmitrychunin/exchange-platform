@@ -2,6 +2,7 @@ import java.util.Properties
 
 import org.apache.spark.sql.catalyst.ScalaReflection
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 import org.apache.spark.sql.types.{ArrayType, DoubleType, LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Dataset, Encoders, Row, SparkSession}
 //import ru.yandex.clickhouse._
@@ -34,7 +35,15 @@ object Streaming {
     ckProperties.put("user", "default")
     ckProperties.put("password", "")
 
-    val query = ds.writeStream.foreachBatch ( (batchDF: Dataset[OrderUpdateInput], _: Long) => {
+    val query = ds.writeStream
+      .outputMode(OutputMode.Append())
+      .format("parquet")
+      .option("checkpointLocation", "/checkpoint/order/btcusd")
+      .option("path", "/order/btcusd")
+//      .trigger(Trigger.Continuous("1 second"))
+      .start()
+
+    val query1 = ds.writeStream.foreachBatch ( (batchDF: Dataset[OrderUpdateInput], _: Long) => {
 //      batchDF.show()
 //      batchDF.printSchema()
 //      todo fix Can't get JDBC type for array<struct<_1:string,_2:string>>

@@ -1,6 +1,9 @@
 CREATE DATABASE binance;;
 drop table binance.order;
 
+TRUNCATE TABLE binance.order;
+
+
 CREATE TABLE binance.order
 (
 	created_at DateTime,
@@ -16,7 +19,7 @@ CREATE TABLE binance.order
 --todo add PARTITION BY date ORDER BY (time, ad_id) SAMPLE BY ad_id SETTINGS index_granularity = 8192
 --todo apply by docker-compose
 
-select *
+select count(*)
 from binance.order;
 
 
